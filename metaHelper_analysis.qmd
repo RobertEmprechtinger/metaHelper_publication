@@ -1,0 +1,534 @@
+---
+title: "metaHelper_analysis"
+format:
+  html:
+    embed-resources: true
+---
+
+## Setting up Environment
+This analysis requires the packages tidyverse, brms and tidbayes.
+
+```{r setup}
+library("tidyverse")
+library("brms")
+library("tidybayes")
+
+dat_result <- read.csv("dat_result.csv", stringsAsFactors = FALSE)
+
+# this dataframe is used for visualization only. It provides the background colors for the exploratory plots.
+group_shading_dat <- data.frame(
+  ID = c(0, 0),
+  result = c(0,0),
+  x_min = c(1, 1),
+  x_max = c(1, 1),
+  y_min = c(0, 0),
+  y_max = c(0, 0),
+  Group = c("Intervention", "Control")
+)
+
+```
+
+## Exploratory analysis
+
+### Correct answers
+
+
+Show the frequency of answers
+
+```{r}
+dat_result %>%
+  mutate(result_correct = as.factor(result_correct)) %>%
+  ggplot(aes(x = ID, y = abs(result))) +
+  geom_rect(aes(xmin = min(ID), xmax = max(ID), ymin = 0, ymax = max(result), fill = group),  alpha = 0.2) +
+  #first geom_rect is just used to create the legend
+  geom_rect(data = group_shading_dat, aes(xmin = x_min, xmax = x_max, ymin = y_min, ymax = y_max, fill = Group),  alpha = 0.2) +
+  geom_rect(xmin = 0, xmax = 14.5, ymin = 0, ymax = 500, fill = "#5BC0EB",  alpha = 0.02) +
+  geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 500, fill = "#FDE74C",  alpha = 0.02) +
+  geom_point(color = "darkgray") +
+  facet_wrap(~task, scales = "free") +
+  scale_fill_manual(name = "Group",
+                    values = c("#FDE74C", "#5BC0EB")) +  
+
+  theme_light() 
+```
+
+
+Which were correct?
+
+```{r}
+dat_result %>%
+  mutate(result_correct = as.factor(result_correct)) %>%
+  ggplot(aes(x = ID, y = abs(result))) +
+  geom_rect(aes(xmin = min(ID), xmax = max(ID), ymin = 0, ymax = max(result), fill = group),  alpha = 0.2) +
+  #first geom_rect is just used to create the legend
+  geom_rect(data = group_shading_dat, aes(xmin = x_min, xmax = x_max, ymin = y_min, ymax = y_max, fill = Group),  alpha = 0.2) +
+  geom_rect(xmin = 0, xmax = 14.5, ymin = 0, ymax = 500, fill = "#5BC0EB",  alpha = 0.02) +
+  geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 500, fill = "#FDE74C",  alpha = 0.02) +
+  geom_point(aes(color = result_correct)) +
+  facet_wrap(~task, scales = "free") +
+  scale_fill_manual(name = "Group",
+                    values = c("#FDE74C", "#5BC0EB")) +  
+
+  theme_light() 
+```
+
+
+# Statistical modelling - Correctness
+
+## Task 1
+
+```{r include=FALSE}
+create_model_result <- function(task_name = ""){
+  if(task_name != "") filtered_dat <- dat_result %>% filter(task == task_name) else
+    filtered_dat <- dat_result
+  
+  brm(result_correct ~ 1 + group,
+    prior = c(prior(normal(0, 1.5), class = Intercept),
+              prior(normal(0, 1), class = b)),
+    control = list(adapt_delta = 0.9),
+    iter = 10000,
+    warmup = 5000,
+    family = bernoulli,
+    # filter to the current task
+    data = filtered_dat)
+}
+
+result_1 <- create_model_result("task_1")
+
+# function to transfor logit values to probabilities
+logit2prob <- function(logit){
+  odds <- exp(logit)
+  prob <- odds / (1 + odds)
+  return(prob)
+}
+
+# Transform the model results to reportable results
+get_probs <- function(result){
+  sum_res <- summary(result)
+  sum_res <- sum_res$fixed
+  
+  result_format <- data.frame(
+    control = round(logit2prob(sum_res[1, 1])*100, 1),
+    intervention = round(logit2prob(colSums(sum_res)[1]) * 100, 1),
+    effect_logit =  sum_res[2, 1],
+    lower_limit_effect = sum_res[2, 3],
+    upper_limit_effect = sum_res[2, 4]
+  )
+  result_format
+}
+result_simple <- get_probs(result_1)
+```
+
+Percentage correct control = `r result_simple[1, 1]`
+
+Percentage correct intervention = `r result_simple[1, 2]`
+
+
+Effect intervention logit = `r result_simple[1, 3]`
+
+Effect intervention logit lower = `r result_simple[1, 4]`
+
+Effect intervention logit lower = `r result_simple[1, 5]`
+
+
+## Task 2
+
+```{r include = FALSE}
+result_2 <- create_model_result("task_2")
+
+result_simple <- get_probs(result_2)
+```
+
+Percentage correct control = `r result_simple[1, 1]`
+
+Percentage correct intervention = `r result_simple[1, 2]`
+
+
+Effect intervention logit = `r result_simple[1, 3]`
+
+Effect intervention logit lower = `r result_simple[1, 4]`
+
+Effect intervention logit lower = `r result_simple[1, 5]`
+
+
+## Task 3
+
+```{r include = FALSE}
+result_3 <- create_model_result("task_3")
+
+result_simple <- get_probs(result_3)
+
+```
+
+Percentage correct control = `r result_simple[1, 1]`
+
+Percentage correct intervention = `r result_simple[1, 2]`
+
+
+Effect intervention logit = `r result_simple[1, 3]`
+
+Effect intervention logit lower = `r result_simple[1, 4]`
+
+Effect intervention logit lower = `r result_simple[1, 5]`
+
+## Task 4
+
+```{r include = FALSE}
+result_4 <- create_model_result("task_4")
+
+result_simple <- get_probs(result_4)
+
+```
+
+Percentage correct control = `r result_simple[1, 1]`
+
+Percentage correct intervention = `r result_simple[1, 2]`
+
+
+Effect intervention logit = `r result_simple[1, 3]`
+
+Effect intervention logit lower = `r result_simple[1, 4]`
+
+Effect intervention logit lower = `r result_simple[1, 5]`
+
+## Task 5
+
+```{r include = FALSE}
+result_5 <- create_model_result("task_5")
+
+result_simple <- get_probs(result_5)
+```
+
+Percentage correct control = `r result_simple[1, 1]`
+
+Percentage correct intervention = `r result_simple[1, 2]`
+
+
+Effect intervention logit = `r result_simple[1, 3]`
+
+Effect intervention logit lower = `r result_simple[1, 4]`
+
+Effect intervention logit lower = `r result_simple[1, 5]`
+
+## Task 6
+
+```{r include = FALSE}
+result_6 <- create_model_result("task_6")
+
+result_simple <- get_probs(result_6)
+```
+
+Percentage correct control = `r result_simple[1, 1]`
+
+Percentage correct intervention = `r result_simple[1, 2]`
+
+
+Effect intervention logit = `r result_simple[1, 3]`
+
+Effect intervention logit lower = `r result_simple[1, 4]`
+
+Effect intervention logit lower = `r result_simple[1, 5]`
+
+## All Tasks combined
+
+```{r include = FALSE}
+result_all <- brm(result_correct ~ 1 + (1 | task) + group,
+    prior = c(prior(normal(0, 1.5), class = Intercept),
+              prior(exponential(1), class = sd),
+              prior(normal(0, 50), class = b)),
+    control = list(adapt_delta = 0.9),
+    iter = 10000,
+    warmup = 5000,
+    family = bernoulli,
+    data = dat_result)
+```
+
+```{r}
+summary(result_all)$fixed["groupIntervention", ]
+```
+
+Overall probability for solution in control = `r logit2prob(summary(result_all)$fixed[1, 1])`
+
+Overall probability for solution in intervention = `r logit2prob(summary(result_all)$fixed[2, 1] + summary(result_all)$fixed[1, 1])`
+
+```{r}
+summary(result_all)
+```
+
+## Posterior Samples
+
+```{r}
+posterior_samples <- as_draws_array(result_all)
+tidy_samples <- tidy_draws(posterior_samples)
+
+tidy_samples %>%
+  mutate(metaHelper = logit2prob(b_Intercept + b_groupIntervention) *100,
+         Control = logit2prob(b_Intercept) * 100) %>%
+  select(metaHelper, Control) %>%
+  pivot_longer(everything(), names_to = "Group") %>%
+  ggplot(aes(x = value, fill = Group)) +
+  geom_density(alpha = 0.6, color = NA) +
+  xlab("Percentage Correct") +
+  theme_light()
+
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupIntervention,
+         Control = b_Intercept) %>%
+  ggplot(aes(x = b_groupIntervention)) +
+  xlim(c(0, 4)) +
+  geom_density(fill = "gray", alpha = 0.7, color = NA) +
+  theme_light() +
+  xlab("Posterior Distribution Effect Intervention (logit)") +
+  geom_vline(xintercept = 0, color = "red")
+```
+
+## Model Fit
+
+```{r}
+plot(result_all)
+```
+
+# Statistical Modelling - Time
+
+
+```{r}
+group_shading_dat$time <- 0
+
+dat_result %>%
+  mutate(result_correct = as.factor(result_correct)) %>%
+  ggplot(aes(x = ID, y = time)) +
+  #first geom_rect is just used to create the legend
+  geom_rect(data = group_shading_dat, aes(xmin = x_min, xmax = x_max, ymin = y_min, ymax = y_max, fill = Group),  alpha = 0.2) +
+  geom_rect(xmin = 0, xmax = 14.5, ymin = 0, ymax = 5000, fill = "#5BC0EB",  alpha = 0.02) +
+  geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 5000, fill = "#FDE74C",  alpha = 0.02) +
+  geom_point(aes(color = result_correct)) +
+  facet_wrap(~task, scales = "free") +
+  scale_fill_manual(name = "Group",
+                    values = c("#FDE74C", "#5BC0EB")) +  
+
+  theme_light() 
+```
+ 
+ 
+## Task 1
+ 
+```{r include = FALSE}
+create_model_time <- function(task_name = ""){
+  if(task_name != "") filtered_dat <- dat_result %>% filter(task == task_name) else
+    filtered_dat <- dat_result
+  
+  brm(time ~ 1 + group,
+    prior = c(prior(lognormal(1, 5), class = Intercept, lb = 0),
+              prior(exponential(100), class = sigma),
+              prior(normal(0, 50), class = b)),
+    control = list(adapt_delta = 0.9),
+    iter = 10000,
+    warmup = 5000,
+    family = gaussian,
+    # filter to the current task
+    data = filtered_dat)
+}
+
+result_1_time <- create_model_time("task_1")
+
+```
+
+```{r}
+summary(result_1_time)$fixed
+```
+ 
+## Task 2
+ 
+```{r include = FALSE}
+result_2_time <- create_model_time("task_2")
+```
+
+```{r}
+summary(result_2_time)$fixed
+```
+
+
+## Task 3
+ 
+```{r include = FALSE}
+result_3_time <- create_model_time("task_3")
+
+```
+
+```{r}
+summary(result_3_time)$fixed
+```
+
+
+## Task 4
+ 
+```{r include = FALSE}
+result_4_time <- create_model_time("task_4")
+
+```
+
+```{r}
+summary(result_4_time)$fixed
+```
+
+
+## Task 5
+ 
+```{r include = FALSE}
+result_5_time <- create_model_time("task_5")
+
+```
+
+```{r}
+summary(result_5_time)$fixed
+```
+
+## Task 6
+ 
+```{r include = FALSE}
+result_6_time <- create_model_time("task_6")
+
+```
+
+```{r}
+summary(result_6_time)$fixed
+```
+
+## All Tasks
+
+```{r include=FALSE}
+result_time_all <- brm(time ~ 1 + (1 | task) + group,
+  prior = c(prior(lognormal(1, 5), class = Intercept, lb = 0),
+            prior(exponential(100), class = sd),
+            prior(normal(0, 50), class = b)),
+  control = list(adapt_delta = 0.9),
+  iter = 10000,
+  warmup = 5000,
+  family = gaussian,
+  # filter to the current task
+  data = dat_result)
+
+```
+
+```{r}
+summary(result_time_all)
+```
+
+### Posterior Samples
+
+```{r}
+posterior_samples <- as_draws_array(result_time_all)
+tidy_samples <- tidy_draws(posterior_samples)
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupIntervention,
+         Control = b_Intercept) %>%
+  select(metaHelper, Control) %>%
+  pivot_longer(everything(), names_to = "Group") %>%
+  ggplot(aes(x = value, fill = Group)) +
+  xlim(c(0, 400)) +
+  geom_density(alpha = 0.6, color = NA) +
+  xlab("Mean Time per Task in Seconds") +
+  theme_light()
+
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupIntervention,
+         Control = b_Intercept) %>%
+  ggplot(aes(x = b_groupIntervention)) +
+  geom_density(fill = "gray", alpha = 0.7, color = NA) +
+  theme_light() +
+  xlab("Posterior Distribution Effect Intervention (Seconds)") +
+  geom_vline(xintercept = 0, color = "red")
+```
+
+### Model Fit
+
+```{r}
+plot(result_time_all)
+```
+
+
+## All Tasks - Taking Correctness into account
+
+```{r include=FALSE}
+result_time_all_c <- brm(time ~ 1 + (1 | task) + group*result_correct,
+  prior = c(prior(lognormal(1, 5), class = Intercept, lb = 0),
+            prior(exponential(100), class = sd),
+            prior(normal(0, 50), class = b)),
+  control = list(adapt_delta = 0.9),
+  iter = 10000,
+  warmup = 5000,
+  family = gaussian,
+  # filter to the current task
+  data = dat_result)
+
+```
+
+```{r}
+summary(result_time_all_c)
+```
+
+### Posterior Samples
+
+```{r}
+posterior_samples <- as_draws_array(result_time_all_c)
+tidy_samples <- tidy_draws(posterior_samples)
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupIntervention,
+         Control = b_Intercept) %>%
+  select(metaHelper, Control) %>%
+  pivot_longer(everything(), names_to = "Group") %>%
+  ggplot(aes(x = value, fill = Group)) +
+  xlim(c(0, 400)) +
+  geom_density(alpha = 0.6, color = NA) +
+  xlab("Mean Time per Task in Seconds") +
+  theme_light()
+
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupIntervention,
+         Control = b_Intercept) %>%
+  ggplot(aes(x = b_groupIntervention)) +
+  geom_density(fill = "gray", alpha = 0.7, color = NA) +
+  theme_light() +
+  xlab("Posterior Distribution Effect Intervention (Seconds)") +
+  geom_vline(xintercept = 0, color = "red")
+```
+
+### Model Fit
+
+```{r}
+plot(result_time_all_c, out.extra='stdout')
+```
+
+
+# Removed Models
+
+## Time
+
+Lower bound prior for the intervention effect did not make sense
+
+```{r include=FALSE}
+result_time_all_removed1 <- brm(time ~ 1 + (1 | task) + group,
+  prior = c(prior(lognormal(1, 5), class = Intercept, lb = 0),
+            prior(exponential(100), class = sd),
+            prior(lognormal(0, 5), class = b)),
+  control = list(adapt_delta = 0.9),
+  iter = 10000,
+  warmup = 5000,
+  family = gaussian,
+  # filter to the current task
+  data = dat_result)
+
+```
+
+```{r}
+summary(result_time_all_removed1)
+```
+
+```{r}
+plot(result_time_all_removed1)
+```
