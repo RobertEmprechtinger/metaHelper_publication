@@ -15,6 +15,9 @@ library("tidybayes")
 
 dat_result <- read.csv("dat_result.csv", stringsAsFactors = FALSE)
 
+dat_result <- dat_result %>%
+  mutate(group = gsub("Intervention", "metaHelper", group))
+
 # this dataframe is used for visualization only. It provides the background colors for the exploratory plots.
 group_shading_dat <- data.frame(
   ID = c(0, 0),
@@ -23,7 +26,7 @@ group_shading_dat <- data.frame(
   x_max = c(1, 1),
   y_min = c(0, 0),
   y_max = c(0, 0),
-  Group = c("Intervention", "Control")
+  Group = c("metaHelper", "Control")
 )
 
 ```
@@ -37,7 +40,6 @@ Show the frequency of answers
 
 ```{r}
 dat_result %>%
-  mutate(result_correct = as.factor(result_correct)) %>%
   ggplot(aes(x = ID, y = abs(result))) +
   geom_rect(aes(xmin = min(ID), xmax = max(ID), ymin = 0, ymax = max(result), fill = group),  alpha = 0.2) +
   #first geom_rect is just used to create the legend
@@ -45,10 +47,11 @@ dat_result %>%
   geom_rect(xmin = 0, xmax = 14.5, ymin = 0, ymax = 500, fill = "#5BC0EB",  alpha = 0.02) +
   geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 500, fill = "#FDE74C",  alpha = 0.02) +
   geom_point(color = "darkgray") +
+  xlab("Participant ID") +
+  ylab("Absolute Result Value") +
   facet_wrap(~task, scales = "free") +
   scale_fill_manual(name = "Group",
-                    values = c("#FDE74C", "#5BC0EB")) +  
-
+                    values = c("#FDE74C", "#5BC0EB")) +
   theme_light() 
 ```
 
@@ -56,8 +59,9 @@ dat_result %>%
 Which were correct?
 
 ```{r}
-dat_result %>%
-  mutate(result_correct = as.factor(result_correct)) %>%
+dat_result  %>%
+  mutate(result_correct = as_factor(result_correct) %>%
+           recode("0" = "wrong", "1" = "correct")) %>%
   ggplot(aes(x = ID, y = abs(result))) +
   geom_rect(aes(xmin = min(ID), xmax = max(ID), ymin = 0, ymax = max(result), fill = group),  alpha = 0.2) +
   #first geom_rect is just used to create the legend
@@ -65,11 +69,15 @@ dat_result %>%
   geom_rect(xmin = 0, xmax = 14.5, ymin = 0, ymax = 500, fill = "#5BC0EB",  alpha = 0.02) +
   geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 500, fill = "#FDE74C",  alpha = 0.02) +
   geom_point(aes(color = result_correct)) +
+  xlab("Participant ID") +
+  ylab("Absolute Result Value") +
+  labs(color = "Result") +
   facet_wrap(~task, scales = "free") +
   scale_fill_manual(name = "Group",
-                    values = c("#FDE74C", "#5BC0EB")) +  
-
+                    values = c("#FDE74C", "#5BC0EB")) + 
   theme_light() 
+
+ggsave("Exploratory_Plot_Result.png", width = 10, height = 5, dpi = 600)
 ```
 
 
@@ -244,7 +252,7 @@ result_all <- brm(result_correct ~ 1 + (1 | task) + group,
 ```
 
 ```{r}
-summary(result_all)$fixed["groupIntervention", ]
+summary(result_all)$fixed["groupmetaHelper", ]
 ```
 
 Overall probability for solution in control = `r logit2prob(summary(result_all)$fixed[1, 1])`
@@ -262,7 +270,7 @@ posterior_samples <- as_draws_array(result_all)
 tidy_samples <- tidy_draws(posterior_samples)
 
 tidy_samples %>%
-  mutate(metaHelper = logit2prob(b_Intercept + b_groupIntervention) *100,
+  mutate(metaHelper = logit2prob(b_Intercept + b_groupmetaHelper) *100,
          Control = logit2prob(b_Intercept) * 100) %>%
   select(metaHelper, Control) %>%
   pivot_longer(everything(), names_to = "Group") %>%
@@ -273,13 +281,13 @@ tidy_samples %>%
 
 
 tidy_samples %>%
-  mutate(metaHelper = b_Intercept + b_groupIntervention,
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
          Control = b_Intercept) %>%
-  ggplot(aes(x = b_groupIntervention)) +
+  ggplot(aes(x = b_groupmetaHelper)) +
   xlim(c(0, 4)) +
   geom_density(fill = "gray", alpha = 0.7, color = NA) +
   theme_light() +
-  xlab("Posterior Distribution Effect Intervention (logit)") +
+  xlab("Posterior Distribution Effect metaHelper (logit)") +
   geom_vline(xintercept = 0, color = "red")
 ```
 
@@ -296,7 +304,8 @@ plot(result_all)
 group_shading_dat$time <- 0
 
 dat_result %>%
-  mutate(result_correct = as.factor(result_correct)) %>%
+  mutate(result_correct = as_factor(result_correct) %>%
+           recode("0" = "wrong", "1" = "correct")) %>%
   ggplot(aes(x = ID, y = time)) +
   #first geom_rect is just used to create the legend
   geom_rect(data = group_shading_dat, aes(xmin = x_min, xmax = x_max, ymin = y_min, ymax = y_max, fill = Group),  alpha = 0.2) +
@@ -304,10 +313,16 @@ dat_result %>%
   geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 5000, fill = "#FDE74C",  alpha = 0.02) +
   geom_point(aes(color = result_correct)) +
   facet_wrap(~task, scales = "free") +
+  xlab("Participant ID") +
+  ylab("Absolute Result Value") +
+  labs(color = "Result") +
   scale_fill_manual(name = "Group",
                     values = c("#FDE74C", "#5BC0EB")) +  
 
   theme_light() 
+
+ggsave("Exploratory_Plot_Result_Time.png", width = 10, height = 5, dpi = 600)
+
 ```
  
  
@@ -422,7 +437,7 @@ posterior_samples <- as_draws_array(result_time_all)
 tidy_samples <- tidy_draws(posterior_samples)
 
 tidy_samples %>%
-  mutate(metaHelper = b_Intercept + b_groupIntervention,
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
          Control = b_Intercept) %>%
   select(metaHelper, Control) %>%
   pivot_longer(everything(), names_to = "Group") %>%
@@ -434,12 +449,12 @@ tidy_samples %>%
 
 
 tidy_samples %>%
-  mutate(metaHelper = b_Intercept + b_groupIntervention,
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
          Control = b_Intercept) %>%
-  ggplot(aes(x = b_groupIntervention)) +
+  ggplot(aes(x = b_groupmetaHelper)) +
   geom_density(fill = "gray", alpha = 0.7, color = NA) +
   theme_light() +
-  xlab("Posterior Distribution Effect Intervention (Seconds)") +
+  xlab("Posterior Distribution Effect metaHelper (Seconds)") +
   geom_vline(xintercept = 0, color = "red")
 ```
 
@@ -477,7 +492,7 @@ posterior_samples <- as_draws_array(result_time_all_c)
 tidy_samples <- tidy_draws(posterior_samples)
 
 tidy_samples %>%
-  mutate(metaHelper = b_Intercept + b_groupIntervention,
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
          Control = b_Intercept) %>%
   select(metaHelper, Control) %>%
   pivot_longer(everything(), names_to = "Group") %>%
@@ -489,12 +504,12 @@ tidy_samples %>%
 
 
 tidy_samples %>%
-  mutate(metaHelper = b_Intercept + b_groupIntervention,
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
          Control = b_Intercept) %>%
-  ggplot(aes(x = b_groupIntervention)) +
+  ggplot(aes(x = b_groupmetaHelper)) +
   geom_density(fill = "gray", alpha = 0.7, color = NA) +
   theme_light() +
-  xlab("Posterior Distribution Effect Intervention (Seconds)") +
+  xlab("Posterior Distribution Effect metaHelper (Seconds)") +
   geom_vline(xintercept = 0, color = "red")
 ```
 
