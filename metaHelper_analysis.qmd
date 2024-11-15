@@ -49,7 +49,7 @@ dat_result %>%
   geom_point(color = "darkgray") +
   xlab("Participant ID") +
   ylab("Absolute Result Value") +
-  facet_wrap(~task, scales = "free") +
+  facet_wrap(~task, scales = "free", ncol = 2) +
   scale_fill_manual(name = "Group",
                     values = c("#FDE74C", "#5BC0EB")) +
   theme_light() 
@@ -72,12 +72,12 @@ dat_result  %>%
   xlab("Participant ID") +
   ylab("Absolute Result Value") +
   labs(color = "Result") +
-  facet_wrap(~task, scales = "free") +
+  facet_wrap(~task, scales = "free", ncol = 2) +
   scale_fill_manual(name = "Group",
                     values = c("#FDE74C", "#5BC0EB")) + 
   theme_light() 
 
-ggsave("Exploratory_Plot_Result.png", width = 10, height = 5, dpi = 600)
+ggsave("Exploratory_Plot_Result.png", width = 10, height = 12, dpi = 600)
 ```
 
 
@@ -312,7 +312,7 @@ dat_result %>%
   geom_rect(xmin = 0, xmax = 14.5, ymin = 0, ymax = 5000, fill = "#5BC0EB",  alpha = 0.02) +
   geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 5000, fill = "#FDE74C",  alpha = 0.02) +
   geom_point(aes(color = result_correct)) +
-  facet_wrap(~task, scales = "free") +
+  facet_wrap(~task, scales = "free", ncol = 2) +
   xlab("Participant ID") +
   ylab("Absolute Result Value") +
   labs(color = "Result") +
@@ -321,7 +321,7 @@ dat_result %>%
 
   theme_light() 
 
-ggsave("Exploratory_Plot_Result_Time.png", width = 10, height = 5, dpi = 600)
+ggsave("Exploratory_Plot_Result_Time.png", width = 10, height = 12, dpi = 600)
 
 ```
  
@@ -447,6 +447,8 @@ tidy_samples %>%
   xlab("Mean Time per Task in Seconds") +
   theme_light()
 
+ggsave("Result Time.png", width = 10, height = 5, dpi = 600)
+
 
 tidy_samples %>%
   mutate(metaHelper = b_Intercept + b_groupmetaHelper,
@@ -456,6 +458,8 @@ tidy_samples %>%
   theme_light() +
   xlab("Posterior Distribution Effect metaHelper (Seconds)") +
   geom_vline(xintercept = 0, color = "red")
+
+
 ```
 
 ### Model Fit
@@ -511,6 +515,7 @@ tidy_samples %>%
   theme_light() +
   xlab("Posterior Distribution Effect metaHelper (Seconds)") +
   geom_vline(xintercept = 0, color = "red")
+
 ```
 
 ### Model Fit
