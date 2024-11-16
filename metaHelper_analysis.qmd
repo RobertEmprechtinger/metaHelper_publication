@@ -304,7 +304,7 @@ tidy_samples %>%
 
 ## Model Fit
 
-```{r}
+```{r fig.height=8, fig.width = 6}
 plot(result_all)
 ```
 
@@ -484,7 +484,7 @@ tidy_samples %>%
 
 ### Model Fit
 
-```{r}
+```{r fig.height=8, fig.width = 6}
 plot(result_time_all)
 ```
 
@@ -540,7 +540,7 @@ tidy_samples %>%
 
 ### Model Fit
 
-```{r}
+```{r fig.height=8, fig.width = 6}
 plot(result_time_all_c, out.extra='stdout')
 ```
 
@@ -690,6 +690,6 @@ result_time_all_removed1 <- brm(time ~ 1 + (1 | task) + group,
 summary(result_time_all_removed1)
 ```
 
-```{r}
+```{r fig.height=8, fig.width = 6}
 plot(result_time_all_removed1)
 ```
