@@ -1,0 +1,3 @@
+"","Estimate","Est.Error","l.95..CI","u.95..CI","Rhat","Bulk_ESS","Tail_ESS"
+"Intercept",296.51,19.81,256.87,335.41,1,27098,14960
+"groupmetaHelper",-132.21,25.43,-181.44,-82.34,1,26117,14816

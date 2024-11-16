@@ -9,6 +9,9 @@ format:
 This analysis requires the packages tidyverse, brms and tidbayes.
 
 ```{r setup}
+set.seed(1)
+
+library("broom.mixed")
 library("tidyverse")
 library("brms")
 library("tidybayes")
@@ -258,9 +261,17 @@ summary(result_all)$fixed["groupmetaHelper", ]
 Overall probability for solution in control = `r logit2prob(summary(result_all)$fixed[1, 1])`
 
 Overall probability for solution in intervention = `r logit2prob(summary(result_all)$fixed[2, 1] + summary(result_all)$fixed[1, 1])`
+Overall probability for solution in intervention Lower Limit = `r logit2prob(summary(result_all)$fixed[2, 3] + summary(result_all)$fixed[1, 1])`
+Overall probability for solution in intervention Lower Limit = `r logit2prob(summary(result_all)$fixed[2, 4] + summary(result_all)$fixed[1, 1])`
 
 ```{r}
-summary(result_all)
+summary(result_all)$fixed 
+
+summary(result_all)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_correctness.csv")
 ```
 
 ## Posterior Samples
@@ -430,6 +441,15 @@ result_time_all <- brm(time ~ 1 + (1 | task) + group,
 summary(result_time_all)
 ```
 
+```{r}
+summary(result_time_all)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_time.csv")
+```
+
+
 ### Posterior Samples
 
 ```{r}
@@ -524,6 +544,127 @@ tidy_samples %>%
 plot(result_time_all_c, out.extra='stdout')
 ```
 
+```{r}
+summary(result_time_all_c)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_time_and_correctness.csv")
+```
+
+# Sensitivity Analyses with different priors
+
+## Correctness
+
+### Increasing spread of priors for intercept and sd
+
+```{r include = FALSE}
+result_all_sens1 <- brm(result_correct ~ 1 + (1 | task) + group,
+    prior = c(prior(normal(0, 3), class = Intercept),
+              prior(exponential(2), class = sd),
+              prior(normal(0, 50), class = b)),
+    control = list(adapt_delta = 0.9),
+    iter = 10000,
+    warmup = 5000,
+    family = bernoulli,
+    data = dat_result)
+```
+
+```{r}
+summary(result_all_sens1)
+```
+
+```{r}
+summary(result_all_sens1)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_correctness_sens1.csv")
+```
+
+### Increasing spread of prior for the slope
+
+```{r include = FALSE}
+result_all_sens2 <- brm(result_correct ~ 1 + (1 | task) + group,
+    prior = c(prior(normal(0, 1.5), class = Intercept),
+              prior(exponential(1), class = sd),
+              prior(normal(0, 200), class = b)),
+    control = list(adapt_delta = 0.9),
+    iter = 10000,
+    warmup = 5000,
+    family = bernoulli,
+    data = dat_result)
+```
+
+```{r}
+summary(result_all_sens2)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_correctness_sens2.csv")
+```
+
+```{r}
+summary(result_all_sens2)
+```
+
+
+## Time
+
+### Increasing spread of priors for intercept and sd
+
+```{r include=FALSE}
+result_time_sens1 <- brm(time ~ 1 + (1 | task) + group,
+  prior = c(prior(lognormal(1, 15), class = Intercept, lb = 0),
+            prior(exponential(300), class = sd),
+            prior(normal(0, 50), class = b)),
+  control = list(adapt_delta = 0.9),
+  iter = 10000,
+  warmup = 5000,
+  family = gaussian,
+  # filter to the current task
+  data = dat_result)
+
+```
+
+```{r}
+summary(result_time_sens1)
+```
+```{r}
+summary(result_time_sens1)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_time_sens1.csv")
+```
+
+### Increasing spread of prior for the slope
+
+```{r include=FALSE}
+result_time_sens2 <- brm(time ~ 1 + (1 | task) + group,
+  prior = c(prior(lognormal(1, 5), class = Intercept, lb = 0),
+            prior(exponential(100), class = sd),
+            prior(normal(0, 200), class = b)),
+  control = list(adapt_delta = 0.9),
+  iter = 10000,
+  warmup = 5000,
+  family = gaussian,
+  # filter to the current task
+  data = dat_result)
+
+```
+
+```{r}
+summary(result_time_sens2)
+```
+
+```{r}
+summary(result_time_sens2)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_time_sens2.csv")
+```
 
 # Removed Models
 
