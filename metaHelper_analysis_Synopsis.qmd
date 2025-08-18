@@ -1,0 +1,1006 @@
+---
+title: "metaHelper_analysis"
+format:
+  html:
+    embed-resources: true
+---
+
+## Setting up Environment
+This analysis requires the packages tidyverse, brms and tidybayes.
+
+```{r setup}
+set.seed(1)
+
+library("broom.mixed")
+library("tidyverse")
+library("brms")
+library("tidybayes")
+
+dat_result <- read.csv("dat_result.csv", stringsAsFactors = FALSE)
+
+dat_result <- dat_result %>%
+  mutate(group = gsub("Intervention", "metaHelper", group))
+
+# this dataframe is used for visualization only. It provides the background colors for the exploratory plots.
+group_shading_dat <- data.frame(
+  ID = c(0, 0),
+  result = c(0,0),
+  x_min = c(1, 1),
+  x_max = c(1, 1),
+  y_min = c(0, 0),
+  y_max = c(0, 0),
+  Group = c("metaHelper", "Control")
+)
+
+```
+
+## Exploratory analysis
+
+### Correct answers
+
+
+Show the frequency of answers
+
+```{r}
+dat_result %>%
+  ggplot(aes(x = ID, y = abs(result))) +
+  geom_rect(aes(xmin = min(ID), xmax = max(ID), ymin = 0, ymax = max(result), fill = group),  alpha = 0.2) +
+  #first geom_rect is just used to create the legend
+  geom_rect(data = group_shading_dat, aes(xmin = x_min, xmax = x_max, ymin = y_min, ymax = y_max, fill = Group),  alpha = 0.2) +
+  geom_rect(xmin = 0, xmax = 14.5, ymin = 0, ymax = 500, fill = "#5BC0EB",  alpha = 0.02) +
+  geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 500, fill = "#FDE74C",  alpha = 0.02) +
+  geom_point(color = "darkgray") +
+  xlab("Participant ID") +
+  ylab("Absolute Result Value") +
+  facet_wrap(~task, scales = "free", ncol = 2) +
+  scale_fill_manual(name = "Group",
+                    values = c("#FDE74C", "#5BC0EB")) +
+  theme_light() 
+```
+
+
+Which were correct?
+
+```{r}
+dat_result  %>%
+  mutate(result_correct = as_factor(result_correct) %>%
+           recode("0" = "wrong", "1" = "correct")) %>%
+  ggplot(aes(x = ID, y = abs(result))) +
+  geom_rect(aes(xmin = min(ID), xmax = max(ID), ymin = 0, ymax = max(result), fill = group),  alpha = 0.2) +
+  #first geom_rect is just used to create the legend
+  geom_rect(data = group_shading_dat, aes(xmin = x_min, xmax = x_max, ymin = y_min, ymax = y_max, fill = Group),  alpha = 0.2) +
+  geom_rect(xmin = 0, xmax = 14.5, ymin = 0, ymax = 500, fill = "#5BC0EB",  alpha = 0.02) +
+  geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 500, fill = "#FDE74C",  alpha = 0.02) +
+  geom_point(aes(color = result_correct)) +
+  xlab("Participant ID") +
+  ylab("Absolute Result Value") +
+  labs(color = "Result") +
+  facet_wrap(~task, scales = "free", ncol = 2) +
+  scale_fill_manual(name = "Group",
+                    values = c("#FDE74C", "#5BC0EB")) + 
+  theme_light() 
+
+ggsave("Exploratory_Plot_Result.png", width = 10, height = 12, dpi = 600)
+```
+
+
+# Statistical modelling - Correctness
+
+## Task 1
+
+```{r include=FALSE}
+create_model_result <- function(task_name = ""){
+  if(task_name != "") filtered_dat <- dat_result %>% filter(task == task_name) else
+    filtered_dat <- dat_result
+  
+  brm(result_correct ~ 1 + group,
+    prior = c(prior(normal(0, 1.5), class = Intercept),
+              prior(normal(0, 1), class = b)),
+    control = list(adapt_delta = 0.9),
+    iter = 10000,
+    warmup = 5000,
+    family = bernoulli,
+    # filter to the current task
+    data = filtered_dat)
+}
+
+result_1 <- create_model_result("task_1")
+
+# function to transfor logit values to probabilities
+logit2prob <- function(logit){
+  odds <- exp(logit)
+  prob <- odds / (1 + odds)
+  return(prob)
+}
+
+# Transform the model results to reportable results
+get_probs <- function(result){
+  sum_res <- summary(result)
+  sum_res <- sum_res$fixed
+  
+  result_format <- data.frame(
+    control = round(logit2prob(sum_res[1, 1])*100, 1),
+    intervention = round(logit2prob(colSums(sum_res)[1]) * 100, 1),
+    effect_logit =  sum_res[2, 1],
+    lower_limit_effect = sum_res[2, 3],
+    upper_limit_effect = sum_res[2, 4]
+  )
+  result_format
+}
+result_simple <- get_probs(result_1)
+```
+
+Percentage correct control = `r result_simple[1, 1]`
+
+Percentage correct intervention = `r result_simple[1, 2]`
+
+
+Effect intervention logit = `r result_simple[1, 3]`
+
+Effect intervention logit lower = `r result_simple[1, 4]`
+
+Effect intervention logit lower = `r result_simple[1, 5]`
+
+
+## Task 2
+
+```{r include = FALSE}
+result_2 <- create_model_result("task_2")
+
+result_simple <- get_probs(result_2)
+```
+
+Percentage correct control = `r result_simple[1, 1]`
+
+Percentage correct intervention = `r result_simple[1, 2]`
+
+
+Effect intervention logit = `r result_simple[1, 3]`
+
+Effect intervention logit lower = `r result_simple[1, 4]`
+
+Effect intervention logit lower = `r result_simple[1, 5]`
+
+
+## Task 3
+
+```{r include = FALSE}
+result_3 <- create_model_result("task_3")
+
+result_simple <- get_probs(result_3)
+
+```
+
+Percentage correct control = `r result_simple[1, 1]`
+
+Percentage correct intervention = `r result_simple[1, 2]`
+
+
+Effect intervention logit = `r result_simple[1, 3]`
+
+Effect intervention logit lower = `r result_simple[1, 4]`
+
+Effect intervention logit lower = `r result_simple[1, 5]`
+
+## Task 4
+
+```{r include = FALSE}
+result_4 <- create_model_result("task_4")
+
+result_simple <- get_probs(result_4)
+
+```
+
+Percentage correct control = `r result_simple[1, 1]`
+
+Percentage correct intervention = `r result_simple[1, 2]`
+
+
+Effect intervention logit = `r result_simple[1, 3]`
+
+Effect intervention logit lower = `r result_simple[1, 4]`
+
+Effect intervention logit lower = `r result_simple[1, 5]`
+
+## Task 5
+
+```{r include = FALSE}
+result_5 <- create_model_result("task_5")
+
+result_simple <- get_probs(result_5)
+```
+
+Percentage correct control = `r result_simple[1, 1]`
+
+Percentage correct intervention = `r result_simple[1, 2]`
+
+
+Effect intervention logit = `r result_simple[1, 3]`
+
+Effect intervention logit lower = `r result_simple[1, 4]`
+
+Effect intervention logit lower = `r result_simple[1, 5]`
+
+## Task 6
+
+```{r include = FALSE}
+result_6 <- create_model_result("task_6")
+
+result_simple <- get_probs(result_6)
+```
+
+Percentage correct control = `r result_simple[1, 1]`
+
+Percentage correct intervention = `r result_simple[1, 2]`
+
+
+Effect intervention logit = `r result_simple[1, 3]`
+
+Effect intervention logit lower = `r result_simple[1, 4]`
+
+Effect intervention logit lower = `r result_simple[1, 5]`
+
+## All Tasks combined
+
+```{r include = FALSE}
+result_all <- brm(result_correct ~ 1 + (1 | task) + group,
+    prior = c(prior(normal(0, 1.5), class = Intercept),
+              prior(exponential(1), class = sd),
+              prior(normal(0, 50), class = b)),
+    control = list(adapt_delta = 0.9),
+    iter = 10000,
+    warmup = 5000,
+    family = bernoulli,
+    data = dat_result)
+```
+
+```{r}
+summary(result_all)$fixed["groupmetaHelper", ]
+```
+
+Overall probability for solution in control = `r logit2prob(summary(result_all)$fixed[1, 1])`
+
+Overall probability for solution in intervention = `r logit2prob(summary(result_all)$fixed[2, 1] + summary(result_all)$fixed[1, 1])`
+Overall probability for solution in intervention Lower Limit = `r logit2prob(summary(result_all)$fixed[2, 3] + summary(result_all)$fixed[1, 1])`
+Overall probability for solution in intervention Lower Limit = `r logit2prob(summary(result_all)$fixed[2, 4] + summary(result_all)$fixed[1, 1])`
+
+```{r}
+summary(result_all)$fixed 
+
+summary(result_all)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_correctness.csv")
+```
+
+## Posterior Samples
+
+```{r}
+posterior_samples <- as_draws_array(result_all)
+tidy_samples <- tidy_draws(posterior_samples)
+
+tidy_samples %>%
+  mutate(metaHelper = logit2prob(b_Intercept + b_groupmetaHelper) *100,
+         Control = logit2prob(b_Intercept) * 100) %>%
+  select(metaHelper, Control) %>%
+  pivot_longer(everything(), names_to = "Group") %>%
+  ggplot(aes(x = value, fill = Group)) +
+  geom_density(alpha = 0.6, color = NA) +
+  xlab("Percentage Correct") +
+  theme_light()
+
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
+         Control = b_Intercept) %>%
+  ggplot(aes(x = b_groupmetaHelper)) +
+  xlim(c(0, 4)) +
+  geom_density(fill = "gray", alpha = 0.7, color = NA) +
+  theme_light() +
+  xlab("Posterior Distribution Effect metaHelper (logit)") +
+  geom_vline(xintercept = 0, color = "red")
+```
+
+## Model Fit
+
+```{r fig.height=8, fig.width = 6}
+plot(result_all)
+```
+
+# Statistical Modelling - Time
+
+
+```{r}
+group_shading_dat$time <- 0
+
+dat_result %>%
+  mutate(result_correct = as_factor(result_correct) %>%
+           recode("0" = "wrong", "1" = "correct")) %>%
+  ggplot(aes(x = ID, y = time)) +
+  #first geom_rect is just used to create the legend
+  geom_rect(data = group_shading_dat, aes(xmin = x_min, xmax = x_max, ymin = y_min, ymax = y_max, fill = Group),  alpha = 0.2) +
+  geom_rect(xmin = 0, xmax = 14.5, ymin = 0, ymax = 5000, fill = "#5BC0EB",  alpha = 0.02) +
+  geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 5000, fill = "#FDE74C",  alpha = 0.02) +
+  geom_point(aes(color = result_correct)) +
+  facet_wrap(~task, scales = "free", ncol = 2) +
+  xlab("Participant ID") +
+  ylab("Absolute Result Value") +
+  labs(color = "Result") +
+  scale_fill_manual(name = "Group",
+                    values = c("#FDE74C", "#5BC0EB")) +  
+
+  theme_light() 
+
+ggsave("Exploratory_Plot_Result_Time.png", width = 10, height = 12, dpi = 600)
+
+```
+ 
+ 
+## Task 1
+ 
+```{r include = FALSE}
+create_model_time <- function(task_name = ""){
+  if(task_name != "") filtered_dat <- dat_result %>% filter(task == task_name) else
+    filtered_dat <- dat_result
+  
+  brm(time ~ 1 + group,
+    prior = c(prior(lognormal(1, 5), class = Intercept, lb = 0),
+              prior(exponential(100), class = sigma),
+              prior(normal(0, 50), class = b)),
+    control = list(adapt_delta = 0.9),
+    iter = 10000,
+    warmup = 5000,
+    family = gaussian,
+    # filter to the current task
+    data = filtered_dat)
+}
+
+result_1_time <- create_model_time("task_1")
+
+```
+
+```{r}
+summary(result_1_time)$fixed
+```
+ 
+## Task 2
+ 
+```{r include = FALSE}
+result_2_time <- create_model_time("task_2")
+```
+
+```{r}
+summary(result_2_time)$fixed
+```
+
+
+## Task 3
+ 
+```{r include = FALSE}
+result_3_time <- create_model_time("task_3")
+
+```
+
+```{r}
+summary(result_3_time)$fixed
+```
+
+
+## Task 4
+ 
+```{r include = FALSE}
+result_4_time <- create_model_time("task_4")
+
+```
+
+```{r}
+summary(result_4_time)$fixed
+```
+
+
+## Task 5
+ 
+```{r include = FALSE}
+result_5_time <- create_model_time("task_5")
+
+```
+
+```{r}
+summary(result_5_time)$fixed
+```
+
+## Task 6
+ 
+```{r include = FALSE}
+result_6_time <- create_model_time("task_6")
+
+```
+
+```{r}
+summary(result_6_time)$fixed
+```
+
+## All Tasks
+
+```{r include=FALSE}
+result_time_all <- brm(time ~ 1 + (1 | task) + group,
+  prior = c(prior(lognormal(1, 5), class = Intercept, lb = 0),
+            prior(exponential(100), class = sd),
+            prior(normal(0, 50), class = b)),
+  control = list(adapt_delta = 0.9),
+  iter = 10000,
+  warmup = 5000,
+  family = gaussian,
+  # filter to the current task
+  data = dat_result)
+
+```
+
+```{r}
+summary(result_time_all)
+```
+```{r}
+summary(result_time_all)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_time.csv")
+```
+
+### Posterior Samples
+
+```{r}
+posterior_samples <- as_draws_array(result_time_all)
+tidy_samples <- tidy_draws(posterior_samples)
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
+         Control = b_Intercept) %>%
+  select(metaHelper, Control) %>%
+  pivot_longer(everything(), names_to = "Group") %>%
+  ggplot(aes(x = value, fill = Group)) +
+  xlim(c(0, 400)) +
+  geom_density(alpha = 0.6, color = NA) +
+  xlab("Mean Time per Task in Seconds") +
+  theme_light()
+
+ggsave("Result Time.png", width = 10, height = 5, dpi = 600)
+
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
+         Control = b_Intercept) %>%
+  ggplot(aes(x = b_groupmetaHelper)) +
+  geom_density(fill = "gray", alpha = 0.7, color = NA) +
+  theme_light() +
+  xlab("Posterior Distribution Effect metaHelper (Seconds)") +
+  geom_vline(xintercept = 0, color = "red")
+
+
+```
+
+### Model Fit
+
+```{r fig.height=8, fig.width = 6}
+plot(result_time_all)
+```
+
+## All Tasks - Taking Correctness into account
+
+```{r include=FALSE}
+result_time_all_c <- brm(time ~ 1 + (1 | task) + group*result_correct,
+  prior = c(prior(lognormal(1, 5), class = Intercept, lb = 0),
+            prior(exponential(100), class = sd),
+            prior(normal(0, 50), class = b)),
+  control = list(adapt_delta = 0.9),
+  iter = 10000,
+  warmup = 5000,
+  family = gaussian,
+  # filter to the current task
+  data = dat_result)
+
+```
+
+```{r}
+summary(result_time_all_c)
+```
+
+### Posterior Samples
+
+```{r}
+posterior_samples <- as_draws_array(result_time_all_c)
+tidy_samples <- tidy_draws(posterior_samples)
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
+         Control = b_Intercept) %>%
+  select(metaHelper, Control) %>%
+  pivot_longer(everything(), names_to = "Group") %>%
+  ggplot(aes(x = value, fill = Group)) +
+  xlim(c(0, 400)) +
+  geom_density(alpha = 0.6, color = NA) +
+  xlab("Mean Time per Task in Seconds") +
+  theme_light()
+
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
+         Control = b_Intercept) %>%
+  ggplot(aes(x = b_groupmetaHelper)) +
+  geom_density(fill = "gray", alpha = 0.7, color = NA) +
+  theme_light() +
+  xlab("Posterior Distribution Effect metaHelper (Seconds)") +
+  geom_vline(xintercept = 0, color = "red")
+
+```
+
+### Model Fit
+
+```{r fig.height=8, fig.width = 6}
+plot(result_time_all_c, out.extra='stdout')
+```
+
+```{r}
+summary(result_time_all_c)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_time_and_correctness.csv")
+```
+
+# Sensitivity Analyses with different priors
+
+## Correctness
+
+### Increasing spread of priors for intercept and sd
+
+```{r include = FALSE}
+result_all_sens1 <- brm(result_correct ~ 1 + (1 | task) + group,
+    prior = c(prior(normal(0, 3), class = Intercept),
+              prior(exponential(2), class = sd),
+              prior(normal(0, 50), class = b)),
+    control = list(adapt_delta = 0.9),
+    iter = 10000,
+    warmup = 5000,
+    family = bernoulli,
+    data = dat_result)
+```
+
+```{r}
+summary(result_all_sens1)
+```
+
+```{r}
+summary(result_all_sens1)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_correctness_sens1.csv")
+```
+
+### Increasing spread of prior for the slope
+
+```{r include = FALSE}
+result_all_sens2 <- brm(result_correct ~ 1 + (1 | task) + group,
+    prior = c(prior(normal(0, 1.5), class = Intercept),
+              prior(exponential(1), class = sd),
+              prior(normal(0, 200), class = b)),
+    control = list(adapt_delta = 0.9),
+    iter = 10000,
+    warmup = 5000,
+    family = bernoulli,
+    data = dat_result)
+```
+
+```{r}
+summary(result_all_sens2)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_correctness_sens2.csv")
+```
+
+```{r}
+summary(result_all_sens2)
+```
+
+
+### Sensitivity Models Added in August 2025
+
+#### SENSITIVITY Correctness random effect participant
+
+```{r}
+result_correct_sens_ID <- brm(
+  result_correct ~ 1 + (1 | task) + (1 | ID) + group,
+  family = bernoulli,
+  prior = c(
+    prior(normal(0, 1.5), class = Intercept),
+    prior(exponential(1), class = sd),  # This now applies to both task and ID
+    prior(normal(0, 50), class = b)
+  ),
+  control = list(adapt_delta = 0.9),
+  iter = 10000,
+  warmup = 5000,
+  data = dat_result
+)
+
+# To see the results
+summary(result_correct_sens_ID)
+```
+
+Results in percentage
+
+```{r}
+# 1. Extract all posterior draws from your model
+tidy_draws_sens <- tidy_draws(result_correct_sens_ID)
+
+# 2. Calculate the probability for each group and the difference for each draw
+prob_summary <- tidy_draws_sens %>%
+  summarise(
+    # Probability for the Control group (from the Intercept)
+    control_prob = median(logit2prob(b_Intercept)) * 100,
+    control_lower = quantile(logit2prob(b_Intercept), 0.025) * 100,
+    control_upper = quantile(logit2prob(b_Intercept), 0.975) * 100,
+    
+    # Probability for the metaHelper group (Intercept + effect)
+    metaHelper_prob = median(logit2prob(b_Intercept + b_groupmetaHelper)) * 100,
+    metaHelper_lower = quantile(logit2prob(b_Intercept + b_groupmetaHelper), 0.025) * 100,
+    metaHelper_upper = quantile(logit2prob(b_Intercept + b_groupmetaHelper), 0.975) * 100,
+    
+    # The difference in percentage points
+    difference_abs = median( (logit2prob(b_Intercept + b_groupmetaHelper) - logit2prob(b_Intercept)) ) * 100,
+    difference_lower = quantile( (logit2prob(b_Intercept + b_groupmetaHelper) - logit2prob(b_Intercept)), 0.025 ) * 100,
+    difference_upper = quantile( (logit2prob(b_Intercept + b_groupmetaHelper)), 0.975 ) * 100
+  )
+
+print(prob_summary)
+```
+
+
+```{r}
+tidy_samples_sens_ID <- tidy_draws(result_correct_sens_ID)
+
+tidy_samples_sens_ID %>%
+  mutate(
+    # Calculate probability for the control group (the intercept)
+    Control = logit2prob(b_Intercept) * 100,
+    # Calculate probability for the metaHelper group (intercept + effect)
+    metaHelper = logit2prob(b_Intercept + b_groupmetaHelper) * 100
+  ) %>%
+  # Keep only the columns we need for the plot
+  select(Control, metaHelper) %>%
+  # Reshape data into a long format for ggplot
+  pivot_longer(everything(), names_to = "Group", values_to = "PercentageCorrect") %>%
+  # Create the plot
+  ggplot(aes(x = PercentageCorrect, fill = Group)) +
+  geom_density(alpha = 0.7, color = NA) +
+  theme_light()
+```
+
+## Time
+
+### Different spread of priors for intercept and sd
+
+```{r include=FALSE}
+result_time_sens1 <- brm(time ~ 1 + (1 | task) + group,
+  prior = c(prior(lognormal(1, 15), class = Intercept, lb = 0),
+            prior(exponential(300), class = sd),
+            prior(normal(0, 50), class = b)),
+  control = list(adapt_delta = 0.9),
+  iter = 10000,
+  warmup = 5000,
+  family = gaussian,
+  # filter to the current task
+  data = dat_result)
+
+```
+
+```{r}
+summary(result_time_sens1)
+```
+```{r}
+summary(result_time_sens1)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_time_sens1.csv")
+```
+
+### Increasing spread of prior for the slope
+
+```{r include=FALSE}
+result_time_sens2 <- brm(time ~ 1 + (1 | task) + group,
+  prior = c(prior(lognormal(1, 5), class = Intercept, lb = 0),
+            prior(exponential(100), class = sd),
+            prior(normal(0, 200), class = b)),
+  control = list(adapt_delta = 0.9),
+  iter = 10000,
+  warmup = 5000,
+  family = gaussian,
+  # filter to the current task
+  data = dat_result)
+
+```
+
+```{r}
+summary(result_time_sens2)
+```
+
+```{r}
+summary(result_time_sens2)$fixed %>%
+  data.frame() %>%
+  mutate(across(Estimate:Rhat, round, digits = 2),
+         across(Bulk_ESS:Tail_ESS, round, digits = 0)) %>%
+  write.csv("result_time_sens2.csv")
+```
+
+### Sensitivity Models Added in August 2025
+
+#### SENSITIVITY 1 All Tasks with exponential 1
+
+```{r include=FALSE}
+result_time_all <- brm(time ~ 1 + (1 | task) + group,
+  prior = c(prior(lognormal(1, 5), class = Intercept, lb = 0),
+            prior(exponential(1), class = sd),
+            prior(normal(0, 50), class = b)),
+  control = list(adapt_delta = 0.9),
+  iter = 10000,
+  warmup = 5000,
+  family = gaussian,
+  # filter to the current task
+  data = dat_result)
+
+```
+
+```{r}
+summary(result_time_all)
+```
+
+#### Posterior Samples
+
+```{r}
+posterior_samples <- as_draws_array(result_time_all)
+tidy_samples <- tidy_draws(posterior_samples)
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
+         Control = b_Intercept) %>%
+  select(metaHelper, Control) %>%
+  pivot_longer(everything(), names_to = "Group") %>%
+  ggplot(aes(x = value, fill = Group)) +
+  xlim(c(0, 400)) +
+  geom_density(alpha = 0.6, color = NA) +
+  xlab("Mean Time per Task in Seconds") +
+  theme_light()
+
+ggsave("Result Time.png", width = 10, height = 5, dpi = 600)
+
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
+         Control = b_Intercept) %>%
+  ggplot(aes(x = b_groupmetaHelper)) +
+  geom_density(fill = "gray", alpha = 0.7, color = NA) +
+  theme_light() +
+  xlab("Posterior Distribution Effect metaHelper (Seconds)") +
+  geom_vline(xintercept = 0, color = "red")
+```
+
+#### SENSITIVITY 2 All Tasks with exponential 1 AND participant as random effect
+
+```{r include=FALSE}
+result_time_all <- brm(time ~ 1 + (1 | task) + (1 | ID) + group,
+  prior = c(prior(lognormal(1, 5), class = Intercept, lb = 0),
+            prior(exponential(1), class = sd),
+            prior(normal(0, 50), class = b)),
+  control = list(adapt_delta = 0.9),
+  iter = 10000,
+  warmup = 5000,
+  family = gaussian,
+  # filter to the current task
+  data = dat_result)
+
+```
+
+```{r}
+summary(result_time_all)
+```
+
+#### Posterior Samples
+
+```{r}
+posterior_samples <- as_draws_array(result_time_all)
+tidy_samples <- tidy_draws(posterior_samples)
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
+         Control = b_Intercept) %>%
+  select(metaHelper, Control) %>%
+  pivot_longer(everything(), names_to = "Group") %>%
+  ggplot(aes(x = value, fill = Group)) +
+  xlim(c(0, 400)) +
+  geom_density(alpha = 0.6, color = NA) +
+  xlab("Mean Time per Task in Seconds") +
+  theme_light()
+
+ggsave("Result Time.png", width = 10, height = 5, dpi = 600)
+
+
+tidy_samples %>%
+  mutate(metaHelper = b_Intercept + b_groupmetaHelper,
+         Control = b_Intercept) %>%
+  ggplot(aes(x = b_groupmetaHelper)) +
+  geom_density(fill = "gray", alpha = 0.7, color = NA) +
+  theme_light() +
+  xlab("Posterior Distribution Effect metaHelper (Seconds)") +
+  geom_vline(xintercept = 0, color = "red")
+```
+
+
+#### SENSITIVITY 3 All Tasks with exponential 1 AND participant as random effect AND family = lognormal
+
+```{r include=FALSE}
+result_time_all_logn <- brm(
+  time ~ 1 + group + (1 | task) + (1 | ID),
+  family = lognormal(),
+  prior = c(
+    prior(normal(log(300), 1), class = Intercept),  # center near 300 s, ~×2.7 per SD
+    prior(exponential(1), class = sd),              # RE SDs on log-scale (task, ID)
+    prior(exponential(1), class = sigma),           # residual sdlog (mean ≈ 1)
+    prior(normal(0, 0.5), class = b)                # time-ratio prior ~ exp(N(0,0.25)) ≈ 0.61–1.65
+  ),
+  control = list(adapt_delta = 0.95),
+  iter = 10000, warmup = 5000,
+  data = dat_result
+)
+
+```
+
+```{r}
+summary(result_time_all_logn)
+```
+
+```{r}
+# population-level (no RE) summaries in seconds
+newdat <- data.frame(group = factor(c("Control","metaHelper"),
+                                    levels = c("Control","metaHelper")))
+
+# Posterior draws: median time = exp(mu), mean time = E[Y] = exp(mu + 0.5*sigma^2)
+mu_draws   <- posterior_linpred(result_time_all_logn, newdata = newdat,
+                                re_formula = NA)          # on log scale (mu)
+mean_draws <- posterior_epred(result_time_all_logn, newdata = newdat,
+                              re_formula = NA)            # on response scale
+
+# Convert to tidy frames
+ctrl_med  <- exp(mu_draws[,1]);  meta_med  <- exp(mu_draws[,2])
+ctrl_mean <- mean_draws[,1];     meta_mean <- mean_draws[,2]
+
+summ <- tibble(
+  group  = c("Control","metaHelper"),
+  median = c(median(ctrl_med),  median(meta_med)),
+  median_l = c(quantile(ctrl_med, .025), quantile(meta_med, .025)),
+  median_u = c(quantile(ctrl_med, .975), quantile(meta_med, .975)),
+  mean   = c(mean(ctrl_mean),   mean(meta_mean)),
+  mean_l = c(quantile(ctrl_mean, .025),  quantile(meta_mean, .025)),
+  mean_u = c(quantile(ctrl_mean, .975),  quantile(meta_mean, .975))
+)
+
+summ %>%
+  mutate(across(-group, ~round(., 2))) %>%
+  write.csv("result_time_lognormal_summary.csv", row.names = FALSE)
+```
+
+#### Posterior Samples
+
+```{r}
+
+draws <- as_draws_df(result_time_all_logn)
+
+draws <- draws %>%
+  mutate(time_ratio = exp(b_groupmetaHelper))  # <1 = faster with metaHelper
+
+# Probability metaHelper is faster:
+pr_faster <- mean(draws$time_ratio < 1)
+
+# Numeric summary you can print/save
+ratio_summ <- tibble(
+  parameter = "time_ratio_metaHelper_vs_Control",
+  median = median(draws$time_ratio),
+  l95 = quantile(draws$time_ratio, .025),
+  u95 = quantile(draws$time_ratio, .975),
+  p_less_1 = pr_faster
+)
+
+ratio_summ %>%
+  mutate(across(-parameter, ~round(., 3))) %>%
+  write.csv("result_time_lognormal_ratio.csv", row.names = FALSE)
+
+```
+
+```{r}
+# pick the fitted model object you have
+fit_time <- if (exists("result_time_all_logn")) {
+  result_time_all_logn
+} else if (exists("result_time_all")) {
+  result_time_all
+} else {
+  stop("No time model found: define result_time_all or result_time_all_logn first.")
+}
+
+# ensure contrast coding is what you expect
+dat_result <- dat_result %>%
+  mutate(group = factor(group, levels = c("Control","metaHelper")))
+newdat <- tibble(group = factor(c("Control","metaHelper"),
+                                levels = c("Control","metaHelper")))
+
+fam <- family(fit_time)$family
+
+# Posterior medians in SECONDS for each group (population level; no RE)
+if (fam == "lognormal") {
+  # mu is on log-time; median = exp(mu)
+  mu_draws <- posterior_linpred(fit_time, newdata = newdat, re_formula = NA)
+  ctrl_med  <- exp(mu_draws[, 1])
+  meta_med  <- exp(mu_draws[, 2])
+} else if (fam == "gaussian") {
+  # use expected value directly (seconds)
+  epred     <- posterior_epred(fit_time, newdata = newdat, re_formula = NA)
+  ctrl_med  <- epred[, 1]
+  meta_med  <- epred[, 2]
+} else {
+  stop(sprintf("Unsupported family: %s", fam))
+}
+
+# Build plotting data
+med_df <- tibble(Control = ctrl_med, metaHelper = meta_med) |>
+  pivot_longer(everything(), names_to = "Group", values_to = "MedianSeconds")
+
+# Plot
+ggplot(med_df, aes(x = MedianSeconds, fill = Group)) +
+  geom_density(alpha = 0.6, color = NA) +
+  xlab("Posterior median time per task (seconds, population level)") +
+  theme_light()
+
+ggsave("Result_Time_Median_Density.png", width = 10, height = 5, dpi = 600)
+
+```
+
+
+```{r}
+ggplot(draws, aes(x = time_ratio)) +
+  geom_density(fill = "gray", alpha = 0.7, color = NA) +
+  geom_vline(xintercept = 1, color = "red") +
+  xlab("Time ratio (metaHelper / Control); values < 1 mean faster") +
+  theme_light()
+ggsave("Result_Time_Ratio_Density.png", width = 8, height = 5, dpi = 600)
+```
+ 
+
+
+# Removed Models
+
+## Time
+
+Lower bound prior for the intervention effect did not make sense
+
+```{r include=FALSE}
+result_time_all_removed1 <- brm(time ~ 1 + (1 | task) + group,
+  prior = c(prior(lognormal(1, 5), class = Intercept, lb = 0),
+            prior(exponential(100), class = sd),
+            prior(lognormal(0, 5), class = b)),
+  control = list(adapt_delta = 0.9),
+  iter = 10000,
+  warmup = 5000,
+  family = gaussian,
+  # filter to the current task
+  data = dat_result)
+
+```
+
+```{r}
+summary(result_time_all_removed1)
+```
+
+```{r fig.height=8, fig.width = 6}
+plot(result_time_all_removed1)
+```
