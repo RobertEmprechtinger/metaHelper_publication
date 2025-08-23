@@ -1,5 +1,5 @@
 "","Estimate","Est.Error","l.95..CI","u.95..CI","Rhat","Bulk_ESS","Tail_ESS"
-"Intercept",323.7,22.44,279.54,367.63,1,27534,17233
-"groupmetaHelper",-95.7,31.55,-158,-33.68,1,22198,15991
-"result_correct",-55.8,29.95,-114.61,2.93,1,22572,15351
-"groupmetaHelper:result_correct",-30.41,35.35,-99.69,39,1,18745,15159
+"Intercept",323.69,22.54,279.34,367.4,1,26597,17282
+"groupmetaHelper",-95.62,31.36,-157.24,-33.43,1,20802,15187
+"result_correct",-56.33,29.71,-114.5,2.29,1,23536,15667
+"groupmetaHelper:result_correct",-29.96,35,-98.5,38.75,1,18415,15181

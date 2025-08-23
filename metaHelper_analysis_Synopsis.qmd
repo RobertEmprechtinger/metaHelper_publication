@@ -651,7 +651,7 @@ prob_summary <- tidy_draws_sens %>%
     # The difference in percentage points
     difference_abs = median( (logit2prob(b_Intercept + b_groupmetaHelper) - logit2prob(b_Intercept)) ) * 100,
     difference_lower = quantile( (logit2prob(b_Intercept + b_groupmetaHelper) - logit2prob(b_Intercept)), 0.025 ) * 100,
-    difference_upper = quantile( (logit2prob(b_Intercept + b_groupmetaHelper)), 0.975 ) * 100
+    difference_upper = quantile( (logit2prob(b_Intercept + b_groupmetaHelper) - logit2prob(b_Intercept)), 0.975 ) * 100
   )
 
 print(prob_summary)
