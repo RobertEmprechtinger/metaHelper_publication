@@ -32,55 +32,56 @@ group_shading_dat <- data.frame(
   Group = c("metaHelper", "Control")
 )
 
+color_correct = "#009E73"
+color_false =  "#D55E00"
+color_metahelper = "#E8EEF5"
+color_control = "#FFF2E2"
 ```
 
 ## Exploratory analysis
 
 ### Correct answers
 
-
-Show the frequency of answers
-
-```{r}
-dat_result %>%
-  ggplot(aes(x = ID, y = abs(result))) +
-  geom_rect(aes(xmin = min(ID), xmax = max(ID), ymin = 0, ymax = max(result), fill = group),  alpha = 0.2) +
-  #first geom_rect is just used to create the legend
-  geom_rect(data = group_shading_dat, aes(xmin = x_min, xmax = x_max, ymin = y_min, ymax = y_max, fill = Group),  alpha = 0.2) +
-  geom_rect(xmin = 0, xmax = 14.5, ymin = 0, ymax = 500, fill = "#5BC0EB",  alpha = 0.02) +
-  geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 500, fill = "#FDE74C",  alpha = 0.02) +
-  geom_point(color = "darkgray") +
-  xlab("Participant ID") +
-  ylab("Absolute Result Value") +
-  facet_wrap(~task, scales = "free", ncol = 2) +
-  scale_fill_manual(name = "Group",
-                    values = c("#FDE74C", "#5BC0EB")) +
-  theme_light() 
-```
-
-
 Which were correct?
 
 ```{r}
+# build facet-aware grid breaks (base R, no extra deps)
+grid_y <- do.call(rbind, lapply(split(dat_result, dat_result$task), function(df) {
+  rng <- range(abs(df$result), na.rm = TRUE)
+  data.frame(task = unique(df$task)[1], y = pretty(rng, n = 4))
+}))
+grid_x <- do.call(rbind, lapply(split(dat_result, dat_result$task), function(df) {
+  rng <- range(df$ID, na.rm = TRUE)
+  data.frame(task = unique(df$task)[1], x = pretty(rng, n = 5))
+}))
+
 dat_result  %>%
   mutate(result_correct = as_factor(result_correct) %>%
            recode("0" = "wrong", "1" = "correct")) %>%
   ggplot(aes(x = ID, y = abs(result))) +
-  geom_rect(aes(xmin = min(ID), xmax = max(ID), ymin = 0, ymax = max(result), fill = group),  alpha = 0.2) +
-  #first geom_rect is just used to create the legend
-  geom_rect(data = group_shading_dat, aes(xmin = x_min, xmax = x_max, ymin = y_min, ymax = y_max, fill = Group),  alpha = 0.2) +
-  geom_rect(xmin = 0, xmax = 14.5, ymin = 0, ymax = 500, fill = "#5BC0EB",  alpha = 0.02) +
-  geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 500, fill = "#FDE74C",  alpha = 0.02) +
+  geom_rect(aes(xmin = min(ID), xmax = max(ID), ymin = 0, ymax = max(result), fill = group),  alpha = 0.21) +
+  # first geom_rect is just used to create the legend
+  geom_rect(data = group_shading_dat, aes(xmin = x_min, xmax = x_max, ymin = y_min, ymax = y_max, fill = Group),  alpha = 0.9) +
+  geom_rect(xmin = -50, xmax = 14.5, ymin = -50, ymax = 500, fill = color_metahelper,  alpha = 0.9) +
+  geom_rect(xmin = 14.5, xmax = 500, ymin = -50, ymax = 500, fill = color_control,  alpha = 0.9) +
+
+  # >>> manual grid (goes AFTER rects, BEFORE points) <<<
+  geom_hline(data = grid_y, aes(yintercept = y),
+             linewidth = 0.3, colour = "#D9DEE7") +
+  geom_vline(data = grid_x, aes(xintercept = x),
+             linewidth = 0.3, colour = "#EEF1F6") +
+
   geom_point(aes(color = result_correct)) +
   xlab("Participant ID") +
   ylab("Absolute Result Value") +
   labs(color = "Result") +
   facet_wrap(~task, scales = "free", ncol = 2) +
   scale_fill_manual(name = "Group",
-                    values = c("#FDE74C", "#5BC0EB")) + 
-  theme_light() 
+                    values = c(color_control, color_metahelper)) + 
+  scale_color_manual(values = c(color_correct, color_false)) + 
+  theme_light()
 
-ggsave("Exploratory_Plot_Result.png", width = 10, height = 12, dpi = 600)
+ggsave("Exploratory_Plot_Result.png", width = 8, height = 10, dpi = 600)
 ```
 
 
@@ -320,15 +321,15 @@ dat_result %>%
   ggplot(aes(x = ID, y = time)) +
   #first geom_rect is just used to create the legend
   geom_rect(data = group_shading_dat, aes(xmin = x_min, xmax = x_max, ymin = y_min, ymax = y_max, fill = Group),  alpha = 0.2) +
-  geom_rect(xmin = 0, xmax = 14.5, ymin = 0, ymax = 5000, fill = "#5BC0EB",  alpha = 0.02) +
-  geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 5000, fill = "#FDE74C",  alpha = 0.02) +
+  geom_rect(xmin = 0, xmax = 14.5, ymin = 0, ymax = 5000, fill = color_metahelper,  alpha = 0.02) +
+  geom_rect(xmin = 14.5, xmax = 500, ymin = 0, ymax = 5000, fill = "#F79824",  alpha = 0.02) +
   geom_point(aes(color = result_correct)) +
   facet_wrap(~task, scales = "free", ncol = 2) +
   xlab("Participant ID") +
   ylab("Absolute Result Value") +
   labs(color = "Result") +
   scale_fill_manual(name = "Group",
-                    values = c("#FDE74C", "#5BC0EB")) +  
+                    values = c("#F79824", color_metahelper)) +  
 
   theme_light() 
 
